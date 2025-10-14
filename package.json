@@ -4,7 +4,7 @@
   "description": "Pruebas de caja negra con arreglos ortogonales para el módulo de tareas de Dolibarr usando Selenium WebDriver",
   "main": "index.js",
   "scripts": {
-    "test": "node corrected-orthogonal-runner.js",
+    "test": "node working-orthogonal-test.js",
     "start": "node corrected-orthogonal-runner.js", 
     "verify": "node verify-compatibility.js",
     "docker-up": "docker-compose up -d",

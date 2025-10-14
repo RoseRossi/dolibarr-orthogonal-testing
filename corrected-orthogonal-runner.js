@@ -147,22 +147,57 @@ class CorrectedOrthogonalTestRunner {
             
             const testCases = this.getTestCases();
             
-            for (let testCase of testCases) {
-                console.log(`\n📋 ${testCase.name}: ${testCase.description}`);
+            for (let i = 0; i < testCases.length; i++) {
+                const testCase = testCases[i];
+                
+                console.log(`\n${'='.repeat(60)}`);
+                console.log(`🧪 CASO DE PRUEBA ${i + 1}/${testCases.length}`);
+                console.log(`${'='.repeat(60)}`);
+                console.log(`📋 ID: ${testCase.name}`);
+                console.log(`📝 Descripción: ${testCase.description}`);
                 console.log(`🎯 EXPECTATIVA: ${testCase.expectation}`);
-                console.log(`📝 Label: "${testCase.inputs.label}"`);
-                console.log(`📝 Task Parent: "${testCase.inputs.task_parent}"`);
+                
+                console.log(`\n� DATOS DE ENTRADA:`);
+                console.log(`   🏷️  Label: "${testCase.inputs.label}"`);
+                console.log(`   � Task Parent: "${testCase.inputs.task_parent}"`);
+                console.log(`   👤 User ID: "${testCase.inputs.userid}"`);
+                console.log(`   📈 Progress: "${testCase.inputs.progress}"`);
+                
+                // Análisis previo de campos obligatorios
+                const analysis = this.analyzeObligatoryFields(testCase.inputs);
+                console.log(`\n🔍 ANÁLISIS PREVIO: ${analysis.analysis}`);
+                
+                console.log(`\n⚡ EJECUTANDO PRUEBA...`);
+                const startTime = Date.now();
                 
                 const result = await this.executeTestCase(baseTest, testCase);
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
                 this.results.push(result);
                 
-                // Mostrar resultado inmediato
+                // Mostrar resultado detallado
+                console.log(`\n📊 RESULTADO FINAL:`);
                 const match = result.actualResult === testCase.expectation;
                 const icon = match ? '✅' : '❌';
-                console.log(`📊 RESULTADO: ${result.actualResult} ${icon}`);
-                console.log(`💬 ${result.details}`);
+                const status = match ? 'CORRECTO' : 'INCORRECTO';
                 
-                await baseTest.driver.sleep(3000);
+                console.log(`   🎯 Esperado: ${testCase.expectation}`);
+                console.log(`   � Obtenido: ${result.actualResult}`);
+                console.log(`   ${icon} Estado: ${status}`);
+                console.log(`   💬 Detalles: ${result.details}`);
+                console.log(`   ⏱️  Duración: ${duration}ms`);
+                console.log(`   📸 Screenshot: ${result.screenshot || 'No disponible'}`);
+                
+                if (match) {
+                    console.log(`   🎉 ¡PRUEBA EXITOSA!`);
+                } else {
+                    console.log(`   ⚠️  Prueba falló - revisar comportamiento`);
+                }
+                
+                console.log(`\n⏳ Esperando 2 segundos antes de la siguiente prueba...`);
+                await baseTest.driver.sleep(2000);
             }
             
         } catch (error) {
@@ -176,12 +211,23 @@ class CorrectedOrthogonalTestRunner {
 
     async executeTestCase(baseTest, testCase) {
         try {
+            console.log(`   🧭 Navegando al formulario de nueva tarea...`);
             await baseTest.navigateToNewTask();
+            console.log(`   ✅ Formulario cargado`);
             
+            console.log(`   📸 Tomando screenshot inicial...`);
             const beforeScreenshot = await baseTest.takeScreenshot(`${testCase.name}_before`);
+            console.log(`   ✅ Screenshot: ${beforeScreenshot ? 'Guardado' : 'Error'}`);
+            
+            console.log(`   📝 Llenando formulario con datos:`);
+            console.log(`      • Label: "${testCase.inputs.label}"`);
+            console.log(`      • Task Parent: "${testCase.inputs.task_parent}"`);
+            console.log(`      • User ID: "${testCase.inputs.userid}"`);
+            console.log(`      • Progress: "${testCase.inputs.progress}"`);
             
             // Llenar formulario
             await baseTest.fillTaskForm(testCase.inputs);
+            console.log(`   ✅ Formulario completado`);
             
             // Enviar formulario  
             await baseTest.submitTaskForm();
@@ -263,8 +309,9 @@ class CorrectedOrthogonalTestRunner {
     }
 
     generateCorrectedReport() {
-        console.log('\n📊 REPORTE CORREGIDO - AMBOS CAMPOS OBLIGATORIOS');
-        console.log('=================================================');
+        console.log(`\n${'='.repeat(70)}`);
+        console.log('🎯 REPORTE FINAL COMPLETO - ARREGLOS ORTOGONALES L9(3⁴)');
+        console.log(`${'='.repeat(70)}`);
         
         const total = this.results.length;
         const matches = this.results.filter(r => r.match).length;
@@ -272,20 +319,41 @@ class CorrectedOrthogonalTestRunner {
         const invalidResults = this.results.filter(r => r.actualResult === 'NO VÁLIDO').length;
         const errors = this.results.filter(r => r.actualResult === 'ERROR').length;
         
-        console.log(`\n📈 ESTADÍSTICAS CORREGIDAS:`);
-        console.log(`Total casos: ${total}`);
-        console.log(`Expectativas cumplidas: ${matches}/${total} (${(matches/total*100).toFixed(1)}%)`);
-        console.log(`Casos que resultaron VÁLIDOS: ${validResults}`);
-        console.log(`Casos que resultaron NO VÁLIDOS: ${invalidResults}`);
-        console.log(`Casos con ERROR: ${errors}`);
+        console.log(`\n� RESUMEN ESTADÍSTICO:`);
+        console.log(`   📦 Total casos ejecutados: ${total}/9`);
+        console.log(`   ✅ Expectativas cumplidas: ${matches}/${total} (${(matches/total*100).toFixed(1)}%)`);
+        console.log(`   🟢 Casos VÁLIDOS: ${validResults}`);
+        console.log(`   🔴 Casos NO VÁLIDOS: ${invalidResults}`);
+        console.log(`   ⚠️  Casos con ERROR: ${errors}`);
         
-        console.log('\n📋 DETALLE POR CASO CORREGIDO:');
-        this.results.forEach(result => {
+        console.log(`\n📋 MATRIZ ORTOGONAL L9(3⁴) - RESULTADOS DETALLADOS:`);
+        console.log(`${'─'.repeat(90)}`);
+        console.log('| Caso | Label            | Task Parent  | UserID    | Progress | Esperado | Obtenido | ✓ |');
+        console.log(`${'─'.repeat(90)}`);
+        
+        this.results.forEach((result, index) => {
+            const testCase = result.testCase;
+            const match = result.match ? '✅' : '❌';
+            const label = (testCase.inputs.label || '').substring(0, 15).padEnd(15);
+            const taskParent = (testCase.inputs.task_parent || '').substring(0, 11).padEnd(11);
+            const userid = (testCase.inputs.userid || '').substring(0, 8).padEnd(8);
+            const progress = (testCase.inputs.progress || '').padEnd(7);
+            const expected = testCase.expectation.padEnd(9);
+            const actual = result.actualResult.padEnd(9);
+            
+            console.log(`| ${(index+1).toString().padEnd(4)} | ${label} | ${taskParent} | ${userid} | ${progress} | ${expected} | ${actual} | ${match} |`);
+        });
+        console.log(`${'─'.repeat(90)}`);
+        
+        console.log(`\n🔍 ANÁLISIS POR CAMPOS OBLIGATORIOS:`);
+        this.results.forEach((result, index) => {
             const icon = result.match ? '✅' : '❌';
             const obligatorios = this.analyzeObligatoryFields(result.testCase.inputs);
-            console.log(`${icon} ${result.testCase.name}: ${obligatorios.analysis}`);
-            console.log(`   Esperado: ${result.expectation} → Obtuvo: ${result.actualResult}`);
-            console.log(`   ${result.details}\n`);
+            console.log(`${icon} Caso ${index + 1}: ${obligatorios.analysis}`);
+            console.log(`   📝 Datos: Label="${result.testCase.inputs.label}" + TaskParent="${result.testCase.inputs.task_parent}"`);
+            console.log(`   🎯 Esperado: ${result.expectation} → 📋 Obtenido: ${result.actualResult}`);
+            console.log(`   💬 ${result.details}`);
+            console.log('');
         });
         
         console.log('🎯 ANÁLISIS FINAL:');
