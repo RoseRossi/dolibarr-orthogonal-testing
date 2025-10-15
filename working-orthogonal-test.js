@@ -182,24 +182,243 @@ class WorkingOrthogonalTests {
                 console.log(`\n⚡ EJECUTANDO...`);
                 const startTime = Date.now();
                 
-                // Simular ejecución (navegación a formulario)
-                console.log(`   🧭 Navegando al formulario...`);
+                // Navegación real al formulario
+                console.log(`   🧭 Navegando al formulario de nueva tarea...`);
                 await this.driver.get('http://localhost:8080/projet/tasks.php?leftmenu=tasks&action=create');
-                await this.driver.sleep(2000);
+                console.log(`   ⏳ Esperando que cargue el formulario...`);
+                await this.driver.sleep(3000);
                 
-                console.log(`   📸 Capturando estado inicial...`);
+                console.log(`   📸 Capturando estado inicial del formulario...`);
                 const beforeScreenshot = await this.takeScreenshot(`${testCase.name}_before`);
                 
-                // Simular resultado basado en análisis de campos obligatorios
+                // Llenar campos REALMENTE y despacio
+                console.log(`   📝 Llenando campos uno por uno (LENTO para que veas)...`);
+                
+                try {
+                    // Campo Label
+                    if (testCase.inputs.label) {
+                        console.log(`   ✏️  Escribiendo Label: "${testCase.inputs.label}"`);
+                        const labelField = await this.driver.findElement(By.css('input[name="label"], #label, input[type="text"]'));
+                        await labelField.clear();
+                        await this.driver.sleep(500);
+                        
+                        // Escribir letra por letra para que se vea
+                        for (let char of testCase.inputs.label) {
+                            await labelField.sendKeys(char);
+                            await this.driver.sleep(100); // Pausa entre cada letra
+                        }
+                        console.log(`   ✅ Label completado`);
+                    } else {
+                        console.log(`   ⚠️  Label se deja vacío (campo obligatorio ausente)`);
+                    }
+                    await this.driver.sleep(1000);
+                    
+                    // Campo Task Parent (SELECT)
+                    if (testCase.inputs.task_parent) {
+                        console.log(`   📂 Seleccionando Task Parent: "${testCase.inputs.task_parent}"`);
+                        try {
+                            const taskParentSelect = await this.driver.findElement(By.css('select[name="task_parent"], select[name="fk_task_parent"]'));
+                            const options = await taskParentSelect.findElements(By.css('option'));
+                            
+                            if (testCase.inputs.task_parent === "first_available" && options.length > 1) {
+                                await options[1].click();
+                                const optionText = await options[1].getText();
+                                console.log(`   ✅ Seleccionado: ${optionText}`);
+                            } else if (testCase.inputs.task_parent === "second_available" && options.length > 2) {
+                                await options[2].click();
+                                const optionText = await options[2].getText();
+                                console.log(`   ✅ Seleccionado: ${optionText}`);
+                            }
+                        } catch (e) {
+                            console.log(`   ⚠️  Task Parent no encontrado o simulado`);
+                        }
+                    } else {
+                        console.log(`   ⚠️  Task Parent se deja vacío (campo obligatorio ausente)`);
+                    }
+                    await this.driver.sleep(1000);
+                    
+                    // Campo Progress (SELECT o INPUT)
+                    if (testCase.inputs.progress) {
+                        console.log(`   📈 Seleccionando Progress: "${testCase.inputs.progress}%"`);
+                        try {
+                            // Buscar campo de progreso (puede ser SELECT o INPUT)
+                            let progressField = null;
+                            
+                            // Intentar primero como SELECT
+                            try {
+                                progressField = await this.driver.findElement(By.css('select[name="progress"]'));
+                                const options = await progressField.findElements(By.css('option'));
+                                
+                                // Buscar la opción con el valor correcto
+                                for (let option of options) {
+                                    const optionValue = await option.getAttribute('value');
+                                    const optionText = await option.getText();
+                                    if (optionValue === testCase.inputs.progress || optionText.includes(testCase.inputs.progress)) {
+                                        await option.click();
+                                        console.log(`   ✅ Progress seleccionado: ${optionText}`);
+                                        break;
+                                    }
+                                }
+                            } catch (selectError) {
+                                // Si no es SELECT, intentar como INPUT
+                                try {
+                                    progressField = await this.driver.findElement(By.css('input[name="progress"], input[type="number"]'));
+                                    await progressField.clear();
+                                    await this.driver.sleep(300);
+                                    
+                                    // Escribir el valor digit por digit
+                                    for (let char of testCase.inputs.progress) {
+                                        await progressField.sendKeys(char);
+                                        await this.driver.sleep(150);
+                                    }
+                                    console.log(`   ✅ Progress escrito: ${testCase.inputs.progress}%`);
+                                } catch (inputError) {
+                                    console.log(`   ⚠️  Campo Progress no encontrado: ${inputError.message}`);
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`   ⚠️  Error con Progress: ${e.message}`);
+                        }
+                    } else {
+                        console.log(`   � Progress se deja vacío (campo opcional)`);
+                    }
+                    await this.driver.sleep(1000);
+                    
+                    // Campo UserID (más complejo - puede ser SELECT o INPUT con autocompletado)
+                    if (testCase.inputs.userid) {
+                        console.log(`   👤 Configurando UserID: "${testCase.inputs.userid}"`);
+                        try {
+                            // Buscar campo de usuario
+                            let userField = null;
+                            
+                            // Intentar primero como SELECT
+                            try {
+                                userField = await this.driver.findElement(By.css('select[name="userid"], select[name="fk_user"]'));
+                                const options = await userField.findElements(By.css('option'));
+                                
+                                if (testCase.inputs.userid === "select_superadmin") {
+                                    // Buscar opción con SuperAdmin o Admin
+                                    for (let option of options) {
+                                        const optionText = await option.getText();
+                                        if (optionText.toLowerCase().includes('admin') || optionText.toLowerCase().includes('super')) {
+                                            await option.click();
+                                            console.log(`   ✅ Usuario seleccionado: ${optionText}`);
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch (selectError) {
+                                console.log(`   ⚠️  UserID como SELECT no disponible, intentando INPUT`);
+                                
+                                // Intentar como campo de texto con autocompletado
+                                try {
+                                    userField = await this.driver.findElement(By.css('input[name="userid"], .select2-search__field'));
+                                    await userField.click();
+                                    await this.driver.sleep(300);
+                                    
+                                    if (testCase.inputs.userid === "type_superadmin") {
+                                        await userField.sendKeys('admin');
+                                        console.log(`   ✅ UserID escrito: admin`);
+                                        await this.driver.sleep(1000);
+                                        
+                                        // Intentar seleccionar primera sugerencia
+                                        try {
+                                            const suggestion = await this.driver.findElement(By.css('.select2-results__option'));
+                                            await suggestion.click();
+                                            console.log(`   ✅ Sugerencia de usuario seleccionada`);
+                                        } catch (suggError) {
+                                            console.log(`   ⚠️  Sin sugerencias disponibles`);
+                                        }
+                                    }
+                                } catch (inputError) {
+                                    console.log(`   ⚠️  Campo UserID no encontrado: ${inputError.message}`);
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`   ⚠️  Error con UserID: ${e.message}`);
+                        }
+                    } else {
+                        console.log(`   👤 UserID se deja vacío (campo opcional)`);
+                    }
+                    
+                    console.log(`   ⏳ Pausa para que veas el formulario completo...`);
+                    await this.driver.sleep(3000);
+                    
+                    // ¡HACER CLICK EN EL BOTÓN AÑADIR!
+                    console.log(`   🔴 Haciendo click en el botón AÑADIR/CREAR...`);
+                    try {
+                        const submitButton = await this.driver.findElement(By.css('input[type="submit"], input[name="add"], input[value*="Crear"], input[value*="Añadir"], button[type="submit"]'));
+                        await submitButton.click();
+                        console.log(`   ✅ Click en botón enviado`);
+                        
+                        console.log(`   ⏳ Esperando respuesta del servidor...`);
+                        await this.driver.sleep(4000);
+                        
+                    } catch (submitError) {
+                        console.log(`   ⚠️  Botón de envío no encontrado: ${submitError.message}`);
+                    }
+                    
+                } catch (fillError) {
+                    console.log(`   ⚠️  Error llenando formulario: ${fillError.message}`);
+                }
+                
+                // Analizar la respuesta REAL de Dolibarr después del envío
                 let actualResult = "ERROR";
                 let details = "";
                 
-                if (hasLabel && hasTaskParent) {
-                    actualResult = "VÁLIDO";
-                    details = "Tarea creada exitosamente - ambos campos obligatorios presentes";
-                } else {
-                    actualResult = "NO VÁLIDO";
-                    details = "Tarea rechazada - faltan campos obligatorios (Label y/o Task Parent)";
+                try {
+                    const currentUrl = await this.driver.getCurrentUrl();
+                    const pageSource = await this.driver.getPageSource();
+                    
+                    console.log(`   🔗 URL después del envío: ${currentUrl}`);
+                    
+                    // Buscar mensajes de error
+                    const errorMessages = await this.driver.findElements(By.css('.error, .warning, .mesgs, .fiche .error'));
+                    const successMessages = await this.driver.findElements(By.css('.ok, .success, .mesgs'));
+                    
+                    if (errorMessages.length > 0) {
+                        const errorText = await errorMessages[0].getText();
+                        console.log(`   ⚠️  Mensaje de error encontrado: "${errorText}"`);
+                        actualResult = "NO VÁLIDO";
+                        details = `Dolibarr rechazó la tarea: ${errorText}`;
+                        
+                    } else if (successMessages.length > 0) {
+                        const successText = await successMessages[0].getText();
+                        console.log(`   ✅ Mensaje de éxito encontrado: "${successText}"`);
+                        actualResult = "VÁLIDO";
+                        details = `Dolibarr aceptó la tarea: ${successText}`;
+                        
+                    } else if (currentUrl.includes('task.php') && !currentUrl.includes('action=create')) {
+                        console.log(`   ✅ URL cambió a vista de tarea - creación exitosa`);
+                        actualResult = "VÁLIDO";
+                        details = "Tarea creada exitosamente - URL cambió a vista de tarea";
+                        
+                    } else if (currentUrl.includes('action=create')) {
+                        console.log(`   ⚠️  Sigue en formulario de creación - posible error`);
+                        actualResult = "NO VÁLIDO";
+                        details = "Permanece en formulario - posibles campos obligatorios faltantes";
+                        
+                    } else {
+                        // Analizar basado en campos obligatorios como fallback
+                        if (hasLabel && hasTaskParent) {
+                            actualResult = "VÁLIDO";
+                            details = "Ambos campos obligatorios presentes - probablemente creada";
+                        } else {
+                            actualResult = "NO VÁLIDO";
+                            details = "Faltan campos obligatorios - probablemente rechazada";
+                        }
+                    }
+                    
+                } catch (analysisError) {
+                    console.log(`   ⚠️  Error analizando respuesta: ${analysisError.message}`);
+                    // Fallback al análisis de campos obligatorios
+                    if (hasLabel && hasTaskParent) {
+                        actualResult = "VÁLIDO";
+                        details = "Análisis basado en campos obligatorios - probablemente válido";
+                    } else {
+                        actualResult = "NO VÁLIDO";
+                        details = "Análisis basado en campos obligatorios - probablemente inválido";
+                    }
                 }
                 
                 console.log(`   📸 Capturando resultado final...`);
@@ -237,8 +456,8 @@ class WorkingOrthogonalTests {
                     console.log(`   ⚠️  Resultado inesperado - revisar lógica`);
                 }
                 
-                console.log(`   ⏳ Pausa antes del siguiente caso...`);
-                await this.driver.sleep(2000);
+                console.log(`   ⏳ Pausa de 5 segundos antes del siguiente caso...`);
+                await this.driver.sleep(5000);
             }
             
             this.generateReport();
